@@ -1,0 +1,40 @@
+Concurrency in go notes 
+
+speedup of parallel execution is limited 
+by the fraction of the algorithm that
+cannot be parallaleized(f)
+
+f is called the sequential fraction, also knows as fixed workload performance
+
+concurrency and communication in go.
+Go model is based on  CSP -> communicating sequential processes(CSP)
+Concurrency: structure a program by breaking it into pieces that can be executed independently.
+communication: coordinate the independent executions.
+
+ideas of CSP
+
+concurrency -> GoRoutines
+Communications -> Channels
+Go Routines run in the same address space.
+
+go routines follow the fork-join model
+They become totally detached.
+
+Use channels to modify shared memory rather than plainly editing shared memory.
+
+Channels 
+Typed 
+Bi-/Unidirectional
+Blocking
+- writing to a channel that is full waits until the channel is empty.
+- Read from a channel that is 
+
+type sh struct{
+
+}
+func (s *sh) getTag() string {
+
+}
+
+[]instruction -> sh 
+
