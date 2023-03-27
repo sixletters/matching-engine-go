@@ -65,10 +65,9 @@ func (pl *PriceLevel) plWorker() {
 			}
 		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
-			fmt.Print("")
 			pl.addOrder(req, pl.OrderQueue, logger)
 		} else {
-			// fmt.Println("fill ")
+			fmt.Print("")
 			// we fill order if the price level ordertype is opposite of request.
 			pl.fillOrder(req, pl.OrderQueue, logger)
 		}

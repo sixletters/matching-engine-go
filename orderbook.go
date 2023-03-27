@@ -8,17 +8,17 @@ type Orderbook struct {
 	instrument string
 	ReqChannel chan Request
 	orderIndex map[uint32]Request
-	bids   map[uint32]*PriceLevel
-	asks  map[uint32]*PriceLevel
+	bids       map[uint32]*PriceLevel
+	asks       map[uint32]*PriceLevel
 }
 
 func NewOrderBook(instrument string) *Orderbook {
 	orderbook := &Orderbook{
 		instrument: instrument,
 		orderIndex: make(map[uint32]Request),
-		bids:   make(map[uint32]*PriceLevel),
-		asks:  make(map[uint32]*PriceLevel),
-		ReqChannel: make(chan Request),
+		bids:       make(map[uint32]*PriceLevel),
+		asks:       make(map[uint32]*PriceLevel),
+		ReqChannel: make(chan Request, 100),
 	}
 	go orderbook.obWorker()
 	return orderbook
@@ -49,10 +49,14 @@ func (ob *Orderbook) obWorker() {
 func (ob *Orderbook) orderLogger(inputPipe <-chan (chan logData)) {
 	for {
 		orderChan, exists := <-inputPipe
-		if !exists { break }
+		if !exists {
+			break
+		}
 		for {
 			log, exists := <-orderChan
-			if !exists { break }
+			if !exists {
+				break
+			}
 			if log.getLogType() == logExecuted {
 				executeLog := log.(executeLog)
 				outputOrderExecuted(
@@ -93,7 +97,7 @@ func (ob *Orderbook) addOrder(req Request, inputPipe chan (chan logData)) {
 	pl.handleRequest(req, outputchan)
 }
 
-func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) (Request) {
+func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) Request {
 	var orderMap map[uint32]*PriceLevel
 	if req.orderType == inputBuy {
 		orderMap = ob.asks
@@ -136,11 +140,11 @@ func (ob *Orderbook) cancelOrder(req Request) {
 	reqInMem, exists := ob.orderIndex[req.orderId]
 	if !exists {
 		input := input{
-						orderType:  req.orderType,
-						orderId:    req.orderId,
-						price:      req.price,
-						count:      req.count,
-						instrument: req.instrument,
+			orderType:  req.orderType,
+			orderId:    req.orderId,
+			price:      req.price,
+			count:      req.count,
+			instrument: req.instrument,
 		}
 		outputOrderDeleted(input, false, req.timestamp)
 		return
