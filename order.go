@@ -26,8 +26,3 @@ func (o Order) CanMatchPrice(restingPrice uint32) bool {
 		panic("Invalid side")
 	}
 }
-
-// func NewOrder(ID uint, ClientID uint, Price uint, Side Side, Quantity uint) *Order {
-// 	return Orde
-
-// }

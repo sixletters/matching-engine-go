@@ -35,7 +35,7 @@ func (ob *Orderbook) obWorker() {
 		if req.orderType == inputCancel {
 			ob.cancelOrder(req)
 		} else {
-			inputPipe := make(chan (chan logData), 1000)
+			inputPipe := make(chan (chan logData), 100)
 			go ob.orderLogger(inputPipe)
 			req, resting := ob.fillOrder(req, inputPipe)
 			if resting {
@@ -93,7 +93,7 @@ func (ob *Orderbook) addOrder(req Request, inputPipe chan (chan logData)) {
 		orderMap[req.price] = pl
 	}
 	ob.orderIndex[req.orderId] = req
-	outputchan := make(chan logData)
+	outputchan := make(chan logData, 100)
 	inputPipe <- outputchan
 	pl.handleRequest(req, outputchan)
 }
@@ -126,7 +126,7 @@ func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) (Requ
 		if req.count <= 0 || !req.CanMatchPrice(price) {
 			break
 		}
-		logchan := make(chan logData, 1000)
+		logchan := make(chan logData, 100)
 		inputPipe <- logchan
 		pl.handleRequest(req, logchan)
 		// if request has more than current pl, then we can fill all orders at that pl
