@@ -105,41 +105,32 @@ func (pl *PriceLevel) addOrder(req Request, outputchan chan logData) {
 }
 
 func (pl *PriceLevel) fillOrder(req Request, outputchan chan logData) {
-	qtyToFill := req.count
 	// indexes we want to remove.
 	toRemove := -1
 	for i, order := range pl.OrderQueue {
-		if qtyToFill >= order.Quantity {
+		fillQty := min(req.count, order.Quantity)
+		order.Quantity -= fillQty
+		req.count -= fillQty
+
+		executionLog := executeLog{
+			logtype:   logExecuted,
+			restingId: order.ID,
+			newId:     req.orderId,
+			execId:    order.ExecutionID,
+			price:     order.Price,
+			count:     fillQty,
+			outTime:   req.timestamp,
+		}
+		outputchan <- executionLog
+
+		if (order.Quantity == 0) {
 			delete(pl.OrderSet, order.ID)
-			//outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
-			executionLog := executeLog{
-				logtype:   logExecuted,
-				restingId: order.ID,
-				newId:     req.orderId,
-				execId:    order.ExecutionID,
-				price:     order.Price,
-				count:     order.Quantity,
-				outTime:   req.timestamp,
-			}
-			outputchan <- executionLog
-			qtyToFill -= order.Quantity
 			toRemove = i
 		} else {
-			//outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, req.count, req.timestamp)
-			executionLog := executeLog{
-				logtype:   logExecuted,
-				restingId: order.ID,
-				newId:     req.orderId,
-				execId:    order.ExecutionID,
-				price:     order.Price,
-				count:     req.count,
-				outTime:   req.timestamp,
-			}
-			outputchan <- executionLog
-			order.Quantity -= qtyToFill
 			order.ExecutionID += 1
 		}
-		if qtyToFill == 0 {
+
+		if req.count == 0 {
 			break
 		}
 	}
