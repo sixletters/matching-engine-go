@@ -43,7 +43,9 @@ func (pl *PriceLevel) plWorker() {
 }
 
 func (pl *PriceLevel) cancelOrder(req Request, outputchan chan logData) {
-	if _, exists := pl.OrderSet[req.orderId]; !exists {
+	if reqInMem, exists := pl.OrderSet[req.orderId]; 
+
+	if (!exists || reqInMem.client != req.client) {
 		input := input{
 			orderType:  req.orderType,
 			orderId:    req.orderId,
