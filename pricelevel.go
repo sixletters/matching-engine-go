@@ -68,15 +68,12 @@ func (pl *PriceLevel) plWorker() {
 				delete(pl.OrderSet, req.orderId)
 				outputOrderDeleted(input, true, req.timestamp)
 			}
-		} else {
+		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
-			if req.orderType == pl.orderType {
-
-				pl.addOrder(req, pl.OrderQueue, logger)
-			} else {
+			pl.addOrder(req, pl.OrderQueue, logger)
+		} else {
 				// we fill order if the price level ordertype is opposite of request.
-				pl.fillOrder(req, pl.OrderQueue, logger)
-			}
+			pl.fillOrder(req, pl.OrderQueue, logger)
 		}
 	}
 }
@@ -145,7 +142,7 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 			order.Quantity -= qtyToFill
 			order.ExecutionID += 1
 		}
-		if qtyToFill <= 0 {
+		if qtyToFill == 0 {
 			break
 		}
 	}
