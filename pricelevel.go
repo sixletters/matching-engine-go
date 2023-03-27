@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type PriceLevel struct {
 	orderType        inputType
 	TotalQuantity    uint32
@@ -45,25 +47,29 @@ func (pl *PriceLevel) plWorker() {
 			}
 			// iterate and remove the order.
 			for i, order := range pl.OrderQueue {
-				if order.ID != req.orderId { continue }
+				if order.ID != req.orderId {
+					continue
+				}
 				pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
 				delete(pl.OrderSet, req.orderId)
 				pl.TotalQuantity -= order.Quantity
 				input := input{
-								orderType:  req.orderType,
-								orderId:    req.orderId,
-								price:      req.price,
-								count:      req.count,
-								instrument: req.instrument,
+					orderType:  req.orderType,
+					orderId:    req.orderId,
+					price:      req.price,
+					count:      req.count,
+					instrument: req.instrument,
 				}
 				outputOrderDeleted(input, true, req.timestamp)
 				break
 			}
 		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
+			fmt.Print("")
 			pl.addOrder(req, pl.OrderQueue, logger)
 		} else {
-				// we fill order if the price level ordertype is opposite of request.
+			// fmt.Println("fill ")
+			// we fill order if the price level ordertype is opposite of request.
 			pl.fillOrder(req, pl.OrderQueue, logger)
 		}
 	}
@@ -81,11 +87,11 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 	pl.OrderSet[req.orderId] = true
 	pl.TotalQuantity += newOrder.Quantity
 	input := input{
-					orderType:  req.orderType,
-					orderId:    req.orderId,
-					price:      req.price,
-					count:      req.count,
-					instrument: req.instrument,
+		orderType:  req.orderType,
+		orderId:    req.orderId,
+		price:      req.price,
+		count:      req.count,
+		instrument: req.instrument,
 	}
 	logData := addLog{
 		logtype: logAdded,
@@ -132,7 +138,9 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 			order.Quantity -= qtyToFill
 			order.ExecutionID += 1
 		}
-		if qtyToFill == 0 { break }
+		if qtyToFill == 0 {
+			break
+		}
 	}
 	close(outputchan)
 	orderQueue = orderQueue[toRemove+1:]
