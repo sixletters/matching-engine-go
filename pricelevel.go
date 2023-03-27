@@ -22,9 +22,6 @@ func NewPriceLevel(orderType inputType) *PriceLevel {
 }
 
 func (pl *PriceLevel) handleRequest(req Request, logChannel chan logData) {
-	// if pl.ReqChannel == nil {
-	// 	go pl.plWorker()
-	// }
 	pl.ReqChannel <- req
 	pl.logOutputChannel <- logChannel
 }
@@ -33,10 +30,10 @@ func (pl *PriceLevel) plWorker() {
 	for {
 		req := <-pl.ReqChannel
 		logger := <-pl.logOutputChannel
+
 		if req.orderType == inputCancel {
 			close(logger)
-			_, exists := pl.OrderSet[req.orderId]
-			if !exists {
+			if _, exists := pl.OrderSet[req.orderId]; !exists {
 				input := input{
 					orderType:  req.orderType,
 					orderId:    req.orderId,
@@ -49,15 +46,9 @@ func (pl *PriceLevel) plWorker() {
 			}
 			// if request is type cancel, we iterate through and remove the order.
 			for i, order := range pl.OrderQueue {
-				if order.ID == req.orderId {
-					pl.setQuantity(pl.getQuantity() - order.Quantity)
-					// cxlOrder = *order
-					if i == (len(pl.OrderQueue) - 1) {
-						pl.OrderQueue = pl.OrderQueue[:i]
-					} else {
-						pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
-					}
-				}
+				if order.ID != req.orderId { continue }
+				pl.setQuantity(pl.getQuantity() - order.Quantity)
+				pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
 				input := input{
 					orderType:  req.orderType,
 					orderId:    req.orderId,
@@ -67,6 +58,7 @@ func (pl *PriceLevel) plWorker() {
 				}
 				delete(pl.OrderSet, req.orderId)
 				outputOrderDeleted(input, true, req.timestamp)
+				break
 			}
 		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
@@ -96,7 +88,6 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 		count:      req.count,
 		instrument: req.instrument,
 	}
-	// outputOrderAdded(input, req.timestamp)
 	logData := addLog{
 		logtype: logAdded,
 		in:      input,
