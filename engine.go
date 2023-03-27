@@ -58,7 +58,7 @@ func (e *Engine) handleConn(conn net.Conn) {
 			return
 		}
 		// create request here
-		t := time.Now().Unix()
+		t := time.Now().UnixNano()
 		req := Request{in.orderType, in.orderId, in.price, in.count, in.instrument, t, clientID}
 		// if req is cancel, check if id -> instr map existence.
 		if req.orderType == inputCancel {
