@@ -40,6 +40,7 @@ func (pl *PriceLevel) plWorker() {
 					instrument: req.instrument,
 				}
 				outputOrderDeleted(input, false, req.timestamp)
+				close(logger)
 				continue
 			}
 			// iterate and remove the order.
@@ -60,6 +61,7 @@ func (pl *PriceLevel) plWorker() {
 				outputOrderDeleted(input, true, req.timestamp)
 				break
 			}
+			close(logger)
 		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
 			pl.addOrder(req, pl.OrderQueue, logger)

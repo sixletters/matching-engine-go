@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -38,10 +37,7 @@ func (ob *Orderbook) obWorker() {
 		} else {
 			inputPipe := make(chan (chan logData), 100)
 			req := ob.fillOrder(req, inputPipe)
-			fmt.Println("HERE")
-			fmt.Println(req.count)
 			if req.count > 0 {
-				fmt.Println(req)
 				ob.addOrder(req, inputPipe)
 			}
 			go ob.orderLogger(inputPipe)
@@ -154,10 +150,13 @@ func (ob *Orderbook) cancelOrder(req Request) {
 		outputOrderDeleted(input, false, req.timestamp)
 		return
 	}
+
+	uselessChan := make(chan logData, 100)
 	if reqInMem.orderType == inputBuy {
-		ob.bids[reqInMem.price].handleRequest(req, nil)
+		ob.bids[reqInMem.price].handleRequest(req, uselessChan)
 	} else {
-		ob.asks[reqInMem.price].handleRequest(req, nil)
+		ob.asks[reqInMem.price].handleRequest(req, uselessChan)
 	}
+	<-uselessChan
 	delete(ob.orderIndex, req.orderId)
 }
