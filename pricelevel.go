@@ -4,7 +4,7 @@ type PriceLevel struct {
 	orderType        inputType
 	TotalQuantity    uint32
 	OrderQueue       []*Order
-	OrderSet         map[uint32]bool
+	OrderSet         map[uint32]uint32
 	ReqChannel       chan Request
 	logOutputChannel chan (chan logData)
 }
@@ -13,7 +13,7 @@ func NewPriceLevel(orderType inputType) *PriceLevel {
 	pl := &PriceLevel{
 		orderType:        orderType,
 		OrderQueue:       make([]*Order, 0),
-		OrderSet:         make(map[uint32]bool),
+		OrderSet:         make(map[uint32]uint32),
 		ReqChannel:       make(chan Request, 100),
 		logOutputChannel: make(chan chan logData, 100),
 	}
@@ -43,9 +43,9 @@ func (pl *PriceLevel) plWorker() {
 }
 
 func (pl *PriceLevel) cancelOrder(req Request, outputchan chan logData) {
-	if reqInMem, exists := pl.OrderSet[req.orderId]; 
-
-	if (!exists || reqInMem.client != req.client) {
+	clientID, exists := pl.OrderSet[req.orderId]; 
+	
+	if (!exists || clientID != req.ClientID) {
 		input := input{
 			orderType:  req.orderType,
 			orderId:    req.orderId,
@@ -88,7 +88,7 @@ func (pl *PriceLevel) addOrder(req Request, outputchan chan logData) {
 		Side:        BUY,
 		ExecutionID: 1,
 	}
-	pl.OrderSet[req.orderId] = true
+	pl.OrderSet[req.orderId] = req.ClientID
 	input := input{
 		orderType:  req.orderType,
 		orderId:    req.orderId,
