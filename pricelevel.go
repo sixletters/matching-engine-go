@@ -52,7 +52,7 @@ func (pl *PriceLevel) cancelOrder(req Request, outputchan chan logData) {
 			instrument: req.instrument,
 		}
 		outputOrderDeleted(input, false, req.timestamp)
-		close(logger)
+		close(outputchan)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (pl *PriceLevel) cancelOrder(req Request, outputchan chan logData) {
 		outputOrderDeleted(input, true, req.timestamp)
 		break
 	}
-	close(logger)
+	close(outputchan)
 }
 
 func (pl *PriceLevel) addOrder(req Request, outputchan chan logData) {
@@ -145,4 +145,5 @@ func (pl *PriceLevel) fillOrder(req Request, outputchan chan logData) {
 	}
 	close(outputchan)
 	pl.OrderQueue = pl.OrderQueue[toRemove+1:]
+	// fmt.Println(pl.OrderQueue)
 }
