@@ -51,6 +51,7 @@ func (e *Engine) handleConn(conn net.Conn) {
 	defer conn.Close()
 	for {
 		in, err := readInput(conn)
+		fmt.Print(in)
 		if err != nil {
 			if err != io.EOF {
 				fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)

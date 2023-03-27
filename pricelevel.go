@@ -99,7 +99,7 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 		count:      req.count,
 		instrument: req.instrument,
 	}
-	// outputOrderAdded(input, req.timestamp)
+	outputOrderAdded(input, req.timestamp)
 	logData := addLog{
 		logtype: logAdded,
 		in:      input,
@@ -117,7 +117,7 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 	for i, order := range orderQueue {
 		if qtyToFill >= order.Quantity {
 			delete(pl.OrderSet, order.ID)
-			// outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
+			outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
 			executionLog := executeLog{
 				logtype:   logExecuted,
 				restingId: order.ID,
@@ -131,7 +131,7 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 			qtyToFill -= order.Quantity
 			toRemove = i
 		} else {
-			// outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, req.count, req.timestamp)
+			outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, req.count, req.timestamp)
 			executionLog := executeLog{
 				logtype:   logExecuted,
 				restingId: order.ID,
