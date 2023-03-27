@@ -32,7 +32,6 @@ func (pl *PriceLevel) plWorker() {
 		logger := <-pl.logOutputChannel
 
 		if req.orderType == inputCancel {
-			close(logger)
 			if _, exists := pl.OrderSet[req.orderId]; !exists {
 				input := input{
 					orderType:  req.orderType,
@@ -44,19 +43,19 @@ func (pl *PriceLevel) plWorker() {
 				outputOrderDeleted(input, false, req.timestamp)
 				continue
 			}
-			// if request is type cancel, we iterate through and remove the order.
+			// iterate and remove the order.
 			for i, order := range pl.OrderQueue {
 				if order.ID != req.orderId { continue }
-				pl.setQuantity(pl.getQuantity() - order.Quantity)
 				pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
-				input := input{
-					orderType:  req.orderType,
-					orderId:    req.orderId,
-					price:      req.price,
-					count:      req.count,
-					instrument: req.instrument,
-				}
 				delete(pl.OrderSet, req.orderId)
+				pl.TotalQuantity -= order.Quantity
+				input := input{
+								orderType:  req.orderType,
+								orderId:    req.orderId,
+								price:      req.price,
+								count:      req.count,
+								instrument: req.instrument,
+				}
 				outputOrderDeleted(input, true, req.timestamp)
 				break
 			}
@@ -82,20 +81,20 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 	pl.OrderSet[req.orderId] = true
 	pl.TotalQuantity += newOrder.Quantity
 	input := input{
-		orderType:  req.orderType,
-		orderId:    req.orderId,
-		price:      req.price,
-		count:      req.count,
-		instrument: req.instrument,
+					orderType:  req.orderType,
+					orderId:    req.orderId,
+					price:      req.price,
+					count:      req.count,
+					instrument: req.instrument,
 	}
 	logData := addLog{
 		logtype: logAdded,
 		in:      input,
 		outTime: req.timestamp,
 	}
+	pl.OrderQueue = append(pl.OrderQueue, &newOrder)
 	outputchan <- logData
 	close(outputchan)
-	pl.OrderQueue = append(pl.OrderQueue, &newOrder)
 }
 
 func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan chan logData) {
@@ -105,7 +104,7 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 	for i, order := range orderQueue {
 		if qtyToFill >= order.Quantity {
 			delete(pl.OrderSet, order.ID)
-			// outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
+			outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
 			executionLog := executeLog{
 				logtype:   logExecuted,
 				restingId: order.ID,
@@ -119,7 +118,7 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 			qtyToFill -= order.Quantity
 			toRemove = i
 		} else {
-			// outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, req.count, req.timestamp)
+			outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, req.count, req.timestamp)
 			executionLog := executeLog{
 				logtype:   logExecuted,
 				restingId: order.ID,
@@ -133,17 +132,8 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 			order.Quantity -= qtyToFill
 			order.ExecutionID += 1
 		}
-		if qtyToFill == 0 {
-			break
-		}
+		if qtyToFill == 0 { break }
 	}
 	close(outputchan)
 	orderQueue = orderQueue[toRemove+1:]
-}
-func (pl *PriceLevel) getQuantity() uint32 {
-	return pl.TotalQuantity
-}
-
-func (pl *PriceLevel) setQuantity(quantity uint32) {
-	pl.TotalQuantity = quantity
 }

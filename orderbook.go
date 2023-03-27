@@ -8,16 +8,16 @@ type Orderbook struct {
 	instrument string
 	ReqChannel chan Request
 	orderIndex map[uint32]Request
-	buyOrder   map[uint32]*PriceLevel
-	sellOrder  map[uint32]*PriceLevel
+	bids   map[uint32]*PriceLevel
+	asks  map[uint32]*PriceLevel
 }
 
 func NewOrderBook(instrument string) *Orderbook {
 	orderbook := &Orderbook{
 		instrument: instrument,
 		orderIndex: make(map[uint32]Request),
-		buyOrder:   make(map[uint32]*PriceLevel),
-		sellOrder:  make(map[uint32]*PriceLevel),
+		bids:   make(map[uint32]*PriceLevel),
+		asks:  make(map[uint32]*PriceLevel),
 		ReqChannel: make(chan Request),
 	}
 	go orderbook.obWorker()
@@ -36,11 +36,11 @@ func (ob *Orderbook) obWorker() {
 			ob.cancelOrder(req)
 		} else {
 			inputPipe := make(chan (chan logData), 100)
-			go ob.orderLogger(inputPipe)
-			req, resting := ob.fillOrder(req, inputPipe)
-			if resting {
+			req := ob.fillOrder(req, inputPipe)
+			if req.count > 0 {
 				ob.addOrder(req, inputPipe)
 			}
+			go ob.orderLogger(inputPipe)
 			close(inputPipe)
 		}
 	}
@@ -49,14 +49,10 @@ func (ob *Orderbook) obWorker() {
 func (ob *Orderbook) orderLogger(inputPipe <-chan (chan logData)) {
 	for {
 		orderChan, exists := <-inputPipe
-		if !exists {
-			break
-		}
+		if !exists { break }
 		for {
 			log, exists := <-orderChan
-			if !exists {
-				break
-			}
+			if !exists { break }
 			if log.getLogType() == logExecuted {
 				executeLog := log.(executeLog)
 				outputOrderExecuted(
@@ -67,7 +63,6 @@ func (ob *Orderbook) orderLogger(inputPipe <-chan (chan logData)) {
 					executeLog.count,
 					executeLog.outTime,
 				)
-
 			} else {
 				addLog := log.(addLog)
 				outputOrderAdded(
@@ -82,9 +77,9 @@ func (ob *Orderbook) orderLogger(inputPipe <-chan (chan logData)) {
 func (ob *Orderbook) addOrder(req Request, inputPipe chan (chan logData)) {
 	var orderMap map[uint32]*PriceLevel
 	if req.orderType == inputBuy {
-		orderMap = ob.buyOrder
+		orderMap = ob.bids
 	} else {
-		orderMap = ob.sellOrder
+		orderMap = ob.asks
 	}
 	var pl *PriceLevel
 	pl, exists := orderMap[req.price]
@@ -98,12 +93,12 @@ func (ob *Orderbook) addOrder(req Request, inputPipe chan (chan logData)) {
 	pl.handleRequest(req, outputchan)
 }
 
-func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) (Request, bool) {
+func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) (Request) {
 	var orderMap map[uint32]*PriceLevel
 	if req.orderType == inputBuy {
-		orderMap = ob.sellOrder
+		orderMap = ob.asks
 	} else {
-		orderMap = ob.buyOrder
+		orderMap = ob.bids
 	}
 	keys := make([]uint32, 0, len(orderMap))
 	for k := range orderMap {
@@ -123,80 +118,37 @@ func (ob *Orderbook) fillOrder(req Request, inputPipe chan (chan logData)) (Requ
 	for _, price := range keys {
 		pl := orderMap[price]
 		// if there is no more requests or if price cannot be matched, then we break.
-		if req.count <= 0 || !req.CanMatchPrice(price) {
+		if req.count == 0 || !req.CanMatchPrice(price) {
 			break
 		}
 		logchan := make(chan logData, 100)
 		inputPipe <- logchan
 		pl.handleRequest(req, logchan)
 		// if request has more than current pl, then we can fill all orders at that pl
-		if req.count > pl.getQuantity() {
-			req.count = req.count - pl.getQuantity()
-			pl.setQuantity(0)
-		} else {
-			pl.setQuantity(pl.getQuantity() - req.count)
-			req.count = 0
-		}
+		fillQty := min(pl.TotalQuantity, req.count)
+		pl.TotalQuantity -= fillQty
+		req.count -= fillQty
 	}
-	return req, req.count > 0
-
+	return req
 }
 
 func (ob *Orderbook) cancelOrder(req Request) {
 	reqInMem, exists := ob.orderIndex[req.orderId]
 	if !exists {
 		input := input{
-			orderType:  req.orderType,
-			orderId:    req.orderId,
-			price:      req.price,
-			count:      req.count,
-			instrument: req.instrument,
+						orderType:  req.orderType,
+						orderId:    req.orderId,
+						price:      req.price,
+						count:      req.count,
+						instrument: req.instrument,
 		}
 		outputOrderDeleted(input, false, req.timestamp)
 		return
 	}
-	uselessChan := make(chan logData)
-	if exists {
-		if reqInMem.orderType == inputBuy {
-			ob.buyOrder[reqInMem.price].handleRequest(req, uselessChan)
-		} else {
-			ob.sellOrder[reqInMem.price].handleRequest(req, uselessChan)
-		}
-		delete(ob.orderIndex, req.orderId)
+	if reqInMem.orderType == inputBuy {
+		ob.bids[reqInMem.price].handleRequest(req, nil)
+	} else {
+		ob.asks[reqInMem.price].handleRequest(req, nil)
 	}
-}
-
-type logData interface {
-	getLogType() LogType
-}
-
-type LogType uint
-
-const (
-	logExecuted LogType = 0
-	logAdded    LogType = 1
-)
-
-type executeLog struct {
-	logtype   LogType
-	restingId uint32
-	newId     uint32
-	execId    uint32
-	price     uint32
-	count     uint32
-	outTime   int64
-}
-
-func (e executeLog) getLogType() LogType {
-	return e.logtype
-}
-
-type addLog struct {
-	logtype LogType
-	in      input
-	outTime int64
-}
-
-func (e addLog) getLogType() LogType {
-	return e.logtype
+	delete(ob.orderIndex, req.orderId)
 }

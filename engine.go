@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"time"
 )
 
 type Request struct {
@@ -35,7 +34,7 @@ var clientID uint32 = 0
 
 var OrderBookIndex map[string]*Orderbook = map[string]*Orderbook{}
 var reqInstrumentMap map[uint32]string = map[uint32]string{}
-var t int = 0
+var t int64 = 0
 
 type Engine struct {}
 
@@ -58,8 +57,8 @@ func (e *Engine) handleConn(conn net.Conn) {
 			}
 			return
 		}
-		t++
 		// create request here
+		t++
 		req := Request{in.orderType, in.orderId, in.price, in.count, in.instrument, t, clientID}
 		// if req is cancel, check if id -> instr map existence.
 		if req.orderType == inputCancel {
@@ -72,7 +71,7 @@ func (e *Engine) handleConn(conn net.Conn) {
 		} else {
 			reqInstrumentMap[req.orderId] = req.instrument
 		}
-		_, exists := OrderBookIndex[req.instrument]; !exists {
+		if _, exists := OrderBookIndex[req.instrument]; !exists {
 			OrderBookIndex[in.instrument] = NewOrderBook(req.instrument)
 		}
 		OrderBookIndex[req.instrument].handleRequest(req)
