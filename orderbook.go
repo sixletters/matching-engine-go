@@ -91,6 +91,7 @@ func (ob *Orderbook) addOrder(req Request, inputPipe chan (chan logData)) {
 		pl = NewPriceLevel(req.orderType)
 		orderMap[req.price] = pl
 	}
+	pl.TotalQuantity += req.count
 	ob.orderIndex[req.orderId] = req
 	outputchan := make(chan logData, 100)
 	inputPipe <- outputchan
