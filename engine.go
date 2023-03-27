@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 )
 
 type Request struct {
@@ -34,9 +35,8 @@ var clientID uint32 = 0
 
 var OrderBookIndex map[string]*Orderbook = map[string]*Orderbook{}
 var reqInstrumentMap map[uint32]string = map[uint32]string{}
-var t int64 = 0
 
-type Engine struct {}
+type Engine struct{}
 
 func (e *Engine) accept(ctx context.Context, conn net.Conn) {
 	clientID += 1
@@ -58,7 +58,7 @@ func (e *Engine) handleConn(conn net.Conn) {
 			return
 		}
 		// create request here
-		t++
+		t := time.Now().Unix()
 		req := Request{in.orderType, in.orderId, in.price, in.count, in.instrument, t, clientID}
 		// if req is cancel, check if id -> instr map existence.
 		if req.orderType == inputCancel {
