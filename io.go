@@ -78,30 +78,24 @@ func readInput(conn net.Conn) (in input, err error) {
 }
 
 func outputOrderDeleted(in input, accepted bool, outTime int64) {
-/*
 	acceptedTxt := "A"
 	if !accepted {
 		acceptedTxt = "R"
 	}
 	fmt.Printf("X %v %v %v\n",
 		in.orderId, acceptedTxt, outTime)
-*/
 }
 
 func outputOrderAdded(in input, outTime int64) {
-/*
 	orderType := "S"
 	if in.orderType == inputBuy {
 		orderType = "B"
 	}
 	fmt.Printf("%v %v %v %v %v %v\n",
 		orderType, in.orderId, in.instrument, in.price, in.count, outTime)
-*/
 }
 
 func outputOrderExecuted(restingId, newId, execId, price, count uint32, outTime int64) {
-/*
 	fmt.Printf("E %v %v %v %v %v %v\n",
 		restingId, newId, execId, price, count, outTime)
-*/
 }
