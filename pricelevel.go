@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type PriceLevel struct {
 	orderType        inputType
 	TotalQuantity    uint32
@@ -32,7 +30,6 @@ func (pl *PriceLevel) plWorker() {
 	for {
 		req := <-pl.ReqChannel
 		logger := <-pl.logOutputChannel
-
 		if req.orderType == inputCancel {
 			if _, exists := pl.OrderSet[req.orderId]; !exists {
 				input := input{
@@ -67,7 +64,6 @@ func (pl *PriceLevel) plWorker() {
 			// if order type is the same as price level ordertype, we add the order.
 			pl.addOrder(req, pl.OrderQueue, logger)
 		} else {
-			fmt.Print("")
 			// we fill order if the price level ordertype is opposite of request.
 			pl.fillOrder(req, pl.OrderQueue, logger)
 		}
@@ -84,7 +80,6 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 		ExecutionID: 1,
 	}
 	pl.OrderSet[req.orderId] = true
-	pl.TotalQuantity += newOrder.Quantity
 	input := input{
 		orderType:  req.orderType,
 		orderId:    req.orderId,

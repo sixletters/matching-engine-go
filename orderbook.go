@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -37,7 +38,10 @@ func (ob *Orderbook) obWorker() {
 		} else {
 			inputPipe := make(chan (chan logData), 100)
 			req := ob.fillOrder(req, inputPipe)
+			fmt.Println("HERE")
+			fmt.Println(req.count)
 			if req.count > 0 {
+				fmt.Println(req)
 				ob.addOrder(req, inputPipe)
 			}
 			go ob.orderLogger(inputPipe)
