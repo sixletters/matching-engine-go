@@ -31,48 +31,53 @@ func (pl *PriceLevel) plWorker() {
 		req := <-pl.ReqChannel
 		logger := <-pl.logOutputChannel
 		if req.orderType == inputCancel {
-			if _, exists := pl.OrderSet[req.orderId]; !exists {
-				input := input{
-					orderType:  req.orderType,
-					orderId:    req.orderId,
-					price:      req.price,
-					count:      req.count,
-					instrument: req.instrument,
-				}
-				outputOrderDeleted(input, false, req.timestamp)
-				close(logger)
-				continue
-			}
-			// iterate and remove the order.
-			for i, order := range pl.OrderQueue {
-				if order.ID != req.orderId {
-					continue
-				}
-				pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
-				delete(pl.OrderSet, req.orderId)
-				pl.TotalQuantity -= order.Quantity
-				input := input{
-					orderType:  req.orderType,
-					orderId:    req.orderId,
-					price:      req.price,
-					count:      req.count,
-					instrument: req.instrument,
-				}
-				outputOrderDeleted(input, true, req.timestamp)
-				break
-			}
-			close(logger)
+			pl.cancelOrder(req, logger)
 		} else if req.orderType == pl.orderType {
 			// if order type is the same as price level ordertype, we add the order.
-			pl.addOrder(req, pl.OrderQueue, logger)
+			pl.addOrder(req, logger)
 		} else {
 			// we fill order if the price level ordertype is opposite of request.
-			pl.fillOrder(req, pl.OrderQueue, logger)
+			pl.fillOrder(req, logger)
 		}
 	}
 }
 
-func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan logData) {
+func (pl *PriceLevel) cancelOrder(req Request, outputchan chan logData) {
+	if _, exists := pl.OrderSet[req.orderId]; !exists {
+		input := input{
+			orderType:  req.orderType,
+			orderId:    req.orderId,
+			price:      req.price,
+			count:      req.count,
+			instrument: req.instrument,
+		}
+		outputOrderDeleted(input, false, req.timestamp)
+		close(logger)
+		return
+	}
+
+	// iterate and remove the order.
+	for i, order := range pl.OrderQueue {
+		if order.ID != req.orderId {
+			continue
+		}
+		pl.OrderQueue = append(pl.OrderQueue[:i], pl.OrderQueue[i+1:]...)
+		delete(pl.OrderSet, req.orderId)
+		pl.TotalQuantity -= order.Quantity
+		input := input{
+			orderType:  req.orderType,
+			orderId:    req.orderId,
+			price:      req.price,
+			count:      req.count,
+			instrument: req.instrument,
+		}
+		outputOrderDeleted(input, true, req.timestamp)
+		break
+	}
+	close(logger)
+}
+
+func (pl *PriceLevel) addOrder(req Request, outputchan chan logData) {
 	newOrder := Order{
 		ID:          req.orderId,
 		Price:       req.price,
@@ -99,11 +104,11 @@ func (pl *PriceLevel) addOrder(req Request, orderQueue []*Order, outputchan chan
 	close(outputchan)
 }
 
-func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan chan logData) {
+func (pl *PriceLevel) fillOrder(req Request, outputchan chan logData) {
 	qtyToFill := req.count
 	// indexes we want to remove.
 	toRemove := -1
-	for i, order := range orderQueue {
+	for i, order := range pl.OrderQueue {
 		if qtyToFill >= order.Quantity {
 			delete(pl.OrderSet, order.ID)
 			//outputOrderExecuted(order.ID, req.orderId, order.ExecutionID, order.Price, order.Quantity, req.timestamp)
@@ -139,5 +144,5 @@ func (pl *PriceLevel) fillOrder(req Request, orderQueue []*Order, outputchan cha
 		}
 	}
 	close(outputchan)
-	orderQueue = orderQueue[toRemove+1:]
+	pl.OrderQueue = pl.OrderQueue[toRemove+1:]
 }
